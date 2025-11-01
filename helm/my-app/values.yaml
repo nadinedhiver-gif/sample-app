@@ -1,6 +1,6 @@
 backend:
   image:
-    repository: yourrepo/myapp-backend
+    repository: ghcr.io/dhiverine/sample-backend
     tag: "latest"
     pullPolicy: IfNotPresent
   replicaCount: 1
@@ -9,7 +9,7 @@ backend:
 
 frontend:
   image:
-    repository: yourrepo/myapp-frontend
+    repository: ghcr.io/dhiverine/sample-frontend
     tag: "latest"
     pullPolicy: IfNotPresent
   replicaCount: 1

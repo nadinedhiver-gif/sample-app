@@ -16,7 +16,9 @@ services:
       retries: 20
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+    image: ghcr.io/dhiverine/sample-backend:latest
     environment:
       DATABASE_URL: postgres://app:apppass@db:5432/appdb
     depends_on:
@@ -26,7 +28,9 @@ services:
       - "3000:3000"
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+    image: ghcr.io/dhiverine/sample-frontend:latest
     depends_on:
       - backend
     ports:
