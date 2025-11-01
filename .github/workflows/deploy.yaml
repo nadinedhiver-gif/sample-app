@@ -1,0 +1,48 @@
+name: Deploy to H3lloCloud
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      IMAGE_TAG: ${{ github.sha }}
+      GHCR: ghcr.io/dhiverine  # ← твой namespace
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.CR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build and push backend
+        run: |
+          docker build -t $GHCR/sample-backend:$IMAGE_TAG ./backend
+          docker push $GHCR/sample-backend:$IMAGE_TAG
+
+      - name: Build and push frontend
+        run: |
+          docker build -t $GHCR/sample-frontend:$IMAGE_TAG ./frontend
+          docker push $GHCR/sample-frontend:$IMAGE_TAG
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.30.0'
+
+      - name: Set up Kubeconfig
+        run: echo "${{ secrets.KUBECONFIG_CONTENT }}" > kubeconfig.yaml
+
+      - name: Deploy with Helm
+        run: |
+          export KUBECONFIG=kubeconfig.yaml
+          helm upgrade --install my-app ./helm/my-app \
+            --set backend.image.repository=ghcr.io/dhiverine/sample-backend \
+            --set backend.image.tag=$IMAGE_TAG \
+            --set frontend.image.repository=ghcr.io/dhiverine/sample-frontend \
+            --set frontend.image.tag=$IMAGE_TAG
