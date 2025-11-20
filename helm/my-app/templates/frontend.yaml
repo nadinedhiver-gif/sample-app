@@ -15,13 +15,19 @@ spec:
         app.kubernetes.io/name: {{ include "my-app.name" . }}
         app.kubernetes.io/component: frontend
     spec:
+      {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- range .Values.imagePullSecrets }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
+
       containers:
         - name: frontend
           image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
           imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
           ports:
             - containerPort: 80
-          # proxy expects backend service DNS below
           env:
             - name: BACKEND_SERVICE_HOST
               value: "{{ include "my-app.fullname" . }}-backend"
@@ -38,23 +44,3 @@ spec:
     - name: http
       port: {{ .Values.frontend.service.port }}
       targetPort: 80
----
-{{- if .Values.ingress.enabled }}
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: {{ include "my-app.fullname" . }}-ingress
-spec:
-  ingressClassName: {{ .Values.ingress.className }}
-  rules:
-    - host: {{ .Values.ingress.host }}
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: {{ include "my-app.fullname" . }}-frontend
-                port:
-                  number: {{ .Values.frontend.service.port }}
-{{- end }}

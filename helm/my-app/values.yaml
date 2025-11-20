@@ -1,6 +1,9 @@
+imagePullSecrets:
+  - ghcr-secret   # <-- имя секрета
+
 backend:
   image:
-    repository: ghcr.io/dhiverine/sample-backend
+    repository: ghcr.io/nadinedhiver-gif/samle-app/sample-backend
     tag: "latest"
     pullPolicy: IfNotPresent
   replicaCount: 1
@@ -9,7 +12,7 @@ backend:
 
 frontend:
   image:
-    repository: ghcr.io/dhiverine/sample-frontend
+    repository: ghcr.io/nadinedhiver-gif/samle-app/sample-frontend
     tag: "latest"
     pullPolicy: IfNotPresent
   replicaCount: 1
@@ -27,3 +30,5 @@ ingress:
   enabled: false
   className: nginx
   host: myapp.example.com
+  
+
