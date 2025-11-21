@@ -1,5 +1,5 @@
 imagePullSecrets:
-  - ghcr-secret   # <-- имя секрета
+  - ghcr-secret # <-- имя секрета
 
 backend:
   image:
@@ -30,5 +30,3 @@ ingress:
   enabled: false
   className: nginx
   host: myapp.example.com
-  
-

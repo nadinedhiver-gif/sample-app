@@ -39,8 +39,10 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: {{ include "my-app.fullname" . }}-postgres-pvc
+  annotations:
+    helm.sh/resource-policy: keep
 spec:
-  accessModes: [ "ReadWriteOnce" ]
+  accessModes: [ReadWriteOnce]
   resources:
     requests:
       storage: {{ .Values.db.storageSize }}

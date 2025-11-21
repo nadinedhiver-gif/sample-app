@@ -1,10 +1,15 @@
 name: Deploy to H3lloCloud
+
 on:
   push:
-    branches: [ "main" ]
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -13,44 +18,62 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Docker Buildx
       - uses: docker/setup-buildx-action@v3
 
-      # Login to registry
       - uses: docker/login-action@v3
         with:
-          registry: ${{ secrets.REGISTRY }}
-          username: ${{ secrets.REGISTRY_USER }}
-          password: ${{ secrets.REGISTRY_PASSWORD }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Build & Push images
+      - name: Set image repo
+        id: image_repo
+        run: |
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          if [ "${{ matrix.component }}" = "backend" ]; then
+            echo "repo=ghcr.io/${REPO_LOWER}/sample-backend" >> $GITHUB_OUTPUT
+          else
+            echo "repo=ghcr.io/${REPO_LOWER}/sample-frontend" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build & Push ${{ matrix.component }}
         uses: docker/build-push-action@v5
         with:
           context: ./${{ matrix.component }}
           push: true
-          tags: ${{ secrets['IMAGE_REPO_' + upper(matrix.component)] }}:${{ github.sha }}
+          tags: |
+            ${{ steps.image_repo.outputs.repo }}:${{ github.sha }}
+            ${{ steps.image_repo.outputs.repo }}:latest
+          platforms: linux/amd64,linux/arm64
 
-      # kubectl
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
       - uses: azure/setup-kubectl@v4
         with:
-          version: 'v1.30.0'
+          version: v1.30.0
 
-      # Helm
-      - name: Install Helm
-        uses: azure/setup-helm@v4.2.0
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
 
-      # Prepare kubeconfig
-      - name: Write kubeconfig
+      - name: Set kubeconfig
+        env:
+          KUBE_CONFIG_DATA: ${{ secrets.KUBECONFIG_CONTENT }}
         run: |
-          echo "${{ secrets.KUBECONFIG_CONTENT }}" > kubeconfig.yaml
-          echo "KUBECONFIG=kubeconfig.yaml" >> $GITHUB_ENV
+          mkdir -p ~/.kube
+          echo "${KUBE_CONFIG_DATA}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
 
-      # Deploy via Helm
-      - name: Helm upgrade/install my-app
+      - name: Deploy with Helm
         run: |
-          helm upgrade --install my-app ./helm/my-app \
-            --namespace default \
-            --create-namespace \
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          helm upgrade -n default --install my-app ./helm/my-app \
+            --set backend.image.repository=ghcr.io/${REPO_LOWER}/sample-backend \
             --set backend.image.tag=${{ github.sha }} \
-            --set frontend.image.tag=${{ github.sha }}
+            --set frontend.image.repository=ghcr.io/${REPO_LOWER}/sample-frontend \
+            --set frontend.image.tag=${{ github.sha }} \
+            --wait --timeout=5m
